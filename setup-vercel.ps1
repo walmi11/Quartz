@@ -1,15 +1,6 @@
 # Script PowerShell - Auto Setup Vercel Firebase Variables
 # Walid - Mon App Cours
 
-param(
-    [switch]$Auto = $false
-)
-
-Write-Host "╔════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║     MON APP COURS - VERCEL FIREBASE AUTO SETUP         ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
-Write-Host ""
-
 # Variables Firebase
 $variables = @(
     @{Key="NEXT_PUBLIC_FIREBASE_API_KEY"; Value="AIzaSyCzdq81WVpuczl28Rv6EMuZK8bpXHuhj-Q"},
@@ -25,67 +16,67 @@ $vercelSettingsUrl = "https://vercel.com/walmi11/nsnwpyup/settings/environment-v
 $vercelDeploymentsUrl = "https://vercel.com/walmi11/nsnwpyup/deployments"
 $appUrl = "https://nsnwpyup.vercel.app"
 
-Write-Host "📍 ÉTAPE 1: Ouverture de Vercel Settings..." -ForegroundColor Yellow
-Write-Host "   → Un navigateur va s'ouvrir" -ForegroundColor Gray
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host "MON APP COURS - VERCEL FIREBASE SETUP" -ForegroundColor Cyan
+Write-Host "======================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Ouvre Vercel Settings
+Write-Host "STEP 1: Opening Vercel Settings..." -ForegroundColor Yellow
+Write-Host ""
+
 Start-Process $vercelSettingsUrl
 
-Write-Host "⏳ Attends que le navigateur s'ouvre (5 secondes)..." -ForegroundColor Gray
+Write-Host "Waiting for browser (5 seconds)..." -ForegroundColor Gray
 Start-Sleep -Seconds 5
 
 Write-Host ""
-Write-Host "📋 ÉTAPE 2: Ajoute les 6 variables" -ForegroundColor Yellow
+Write-Host "STEP 2: Adding 6 variables" -ForegroundColor Yellow
 Write-Host ""
 
 $count = 1
 foreach ($var in $variables) {
-    Write-Host "$count️⃣  Variable: $($var.Key)" -ForegroundColor Cyan
-    Write-Host "   Value: $($var.Value)" -ForegroundColor Green
+    Write-Host "Variable $count of 6: $($var.Key)" -ForegroundColor Cyan
+    Write-Host "Value: $($var.Value)" -ForegroundColor Green
     
-    # Copie la valeur au clipboard
     $var.Value | Set-Clipboard
-    Write-Host "   ✓ Copié au clipboard!" -ForegroundColor Green
+    Write-Host ">> Copied to clipboard!" -ForegroundColor Green
     
     Write-Host ""
-    Read-Host "   Presse ENTER quand tu as collé cette variable dans Vercel et cliqué Save"
+    Read-Host "Press ENTER after you paste this in Vercel and click Save"
     Write-Host ""
     
     $count++
 }
 
-Write-Host "✅ Variables complétées!" -ForegroundColor Green
+Write-Host "All variables added!" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "📍 ÉTAPE 3: Redéploiement" -ForegroundColor Yellow
-Write-Host "   → Ouverture de la page Deployments..." -ForegroundColor Gray
+Write-Host "STEP 3: Redeploy" -ForegroundColor Yellow
 Write-Host ""
 
 Start-Process $vercelDeploymentsUrl
 
 Start-Sleep -Seconds 3
 
-Write-Host "📝 INSTRUCTIONS FINALES:" -ForegroundColor Cyan
-Write-Host "   1. Clique sur le dernier déploiement" -ForegroundColor Gray
-Write-Host "   2. Clique 'Redeploy'" -ForegroundColor Gray
-Write-Host "   3. Attends 2-3 minutes" -ForegroundColor Gray
-Write-Host "   4. Quand c'est VERT ✅, visite l'app" -ForegroundColor Gray
+Write-Host "FINAL INSTRUCTIONS:" -ForegroundColor Cyan
+Write-Host "   1. Click on the latest deployment" -ForegroundColor Gray
+Write-Host "   2. Click 'Redeploy'" -ForegroundColor Gray
+Write-Host "   3. Wait 2-3 minutes (blue spinner)" -ForegroundColor Gray
+Write-Host "   4. When you see GREEN checkmark, press ENTER" -ForegroundColor Gray
 Write-Host ""
 
-Read-Host "Presse ENTER quand le Redeploy est VERT ✅"
+Read-Host "Press ENTER when Redeploy is GREEN and complete"
 
 Write-Host ""
-Write-Host "🚀 Ouverture de ton app..." -ForegroundColor Yellow
+Write-Host "Opening your app..." -ForegroundColor Yellow
 
 Start-Process $appUrl
 
 Write-Host ""
-Write-Host "╔════════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║         ✅ SETUP TERMINÉ!                              ║" -ForegroundColor Green
-Write-Host "║                                                        ║" -ForegroundColor Green
-Write-Host "║  Si tu vois ton app (pas 404), tu as réussi! 🎉       ║" -ForegroundColor Green
-Write-Host "╚════════════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "======================================" -ForegroundColor Green
+Write-Host "SETUP COMPLETE!" -ForegroundColor Green
+Write-Host "If you see your app (not 404): SUCCESS!" -ForegroundColor Green
+Write-Host "======================================" -ForegroundColor Green
 Write-Host ""
 
-Read-Host "Presse ENTER pour fermer"
+Read-Host "Press ENTER to finish"
