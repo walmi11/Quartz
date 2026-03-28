@@ -1,0 +1,60 @@
+{
+  "name": "mes-cours",
+  "version": "1.0.0",
+  "description": "Application de prise de notes de cours",
+  "main": "electron/main.js",
+  "author": "Walid",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "electron": "cross-env NODE_ENV=production electron .",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.walid.mescours",
+    "productName": "MesCours",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      ".next/**/*",
+      "node_modules/**/*",
+      "public/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MesCours"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "cross-env": "^10.1.0",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@tiptap/extension-highlight": "^3.20.1",
+    "@tiptap/extension-placeholder": "^3.20.1",
+    "@tiptap/extension-underline": "^3.20.1",
+    "@tiptap/react": "^3.20.1",
+    "@tiptap/starter-kit": "^3.20.1",
+    "firebase": "^12.11.0",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1"
+  }
+}
