@@ -1,23 +1,27 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/lib/auth";
+import Sidebar from "@/components/Sidebar";
+import SidebarClientWrapper from "@/components/SidebarClientWrapper";
 
 export const metadata: Metadata = {
-  title: "Mes Cours",
-  description: "Application moderne de prise de notes de cours",
+  title: "Quartz",
+  description: "The most powerful environment ever built for your courses",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="fr">
-      <body className="bg-white text-gray-900 antialiased">
-        <AuthProvider>
+    <html lang="fr" className="dark">
+      <body className="bg-[hsl(var(--background))] text-[hsl(var(--foreground))] antialiased h-screen flex overflow-hidden custom-scrollbar">
+        <SidebarClientWrapper>
+          <Sidebar />
+        </SidebarClientWrapper>
+        <main className="flex-1 h-screen overflow-y-auto custom-scrollbar relative z-10">
           {children}
-        </AuthProvider>
+        </main>
       </body>
     </html>
   );

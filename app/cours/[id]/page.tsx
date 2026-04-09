@@ -1,226 +1,156 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
+import { getCoursByIdLocale, getMatiereByIdLocale, sauvegarderCoursLocal, supprimerCoursLocal, Cours, Matiere } from "@/lib/localDb";
+import { ArrowLeft, Save, Clock, ChevronRight, Trash2 } from "lucide-react";
 import Editor from "@/components/Editor";
-import ThemeToggle from "@/components/ThemeToggle";
-import { getCoursById, sauvegarderCours, getCoursByMatiere, Cours } from "@/lib/firestore";
+import MatiereIcon from "@/components/MatiereIcon";
 
 export default function CoursPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const id = params.id as string;
+  const [id, setId] = useState("");
+
+  const [cours, setCours] = useState<Cours | null>(null);
+  const [matiere, setMatiere] = useState<Matiere | null>(null);
   const [titre, setTitre] = useState("");
-  const [contenu, setContenu] = useState<string | null>(null);
-  const [matiere, setMatiere] = useState("");
-  const [matiereId, setMatiereId] = useState("");
-  const [saved, setSaved] = useState(true);
-  const [showSaved, setShowSaved] = useState(false);
-  const [autresCours, setAutresCours] = useState<Cours[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const titreRef = useRef(titre);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
-  // Redirect to auth if not logged in
+  // Next.js 15
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth");
+    if (params?.id) {
+      if (params.id instanceof Promise) {
+        params.id.then((res: any) => setId(res));
+      } else {
+        setId(params.id as string);
+      }
     }
-  }, [user, loading, router]);
+  }, [params]);
 
-  // Load course data
   useEffect(() => {
-    if (loading || !user) return;
-
-    const loadData = async () => {
+    if (!id) return;
+    const loadCours = async () => {
       try {
-        const cours = await getCoursById(id);
-        if (cours) {
-          setTitre(cours.titre || "");
-          setContenu(cours.contenu || "");
-          setMatiere(cours.matiere || "");
-          setMatiereId(cours.matiereId || "");
-          
-          const autres = await getCoursByMatiere(cours.matiereId);
-          setAutresCours(
-            autres
-              .filter((c) => c.id !== id)
-              .slice(0, 5)
-          );
+        const dataCours = await getCoursByIdLocale(id);
+        setCours(dataCours);
+        if (dataCours) {
+          setTitre(dataCours.titre);
+          const dataMatiere = await getMatiereByIdLocale(dataCours.matiereId);
+          setMatiere(dataMatiere);
         }
-      } catch (error) {
-        console.error("Erreur au chargement:", error);
+      } catch (err) {
+        console.error(err);
       } finally {
-        setDataLoading(false);
+        setLoading(false);
       }
     };
+    loadCours();
+  }, [id]);
 
-    loadData();
-  }, [id, user, loading]);
+  const handleSave = (html: string) => {
+    if (!cours) return;
+    sauvegarderCoursLocal(cours.id, html, titre).catch(console.error);
+  };
 
-  useEffect(() => {
-    titreRef.current = titre;
-  }, [titre]);
-
-  function handleTitreChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setTitre(e.target.value);
-    setSaved(false);
-  }
-
-  async function handleSave(html: string) {
-    try {
-      await sauvegarderCours(id, titreRef.current, html);
-      setContenu(html);
-      setSaved(true);
-      setShowSaved(true);
-      setTimeout(() => setShowSaved(false), 2000);
-    } catch (error) {
-      console.error("Erreur de sauvegarde:", error);
+  const updateTitle = (newTitre: string) => {
+    setTitre(newTitre);
+    if (cours) {
+      sauvegarderCoursLocal(cours.id, cours.contenu, newTitre).catch(console.error);
     }
-  }
+  };
 
-  if (loading || dataLoading) {
+  const handleDelete = () => {
+    if (!cours) return;
+    if (confirm("Voulez-vous vraiment supprimer ce cours ?")) {
+      supprimerCoursLocal(cours.id).then(() => {
+        router.push(matiere ? `/matiere/${matiere.slug}` : "/");
+      });
+    }
+  };
+
+  if (loading) {
     return (
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        background: "var(--bg)",
-        color: "var(--text)",
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>⏳</div>
-          <p>Chargement...</p>
-        </div>
+      <div className="flex-1 flex flex-col h-full bg-[hsl(var(--background))] p-8 text-white relative items-center justify-center">
+         <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  if (!user) {
-    return null; // Will redirect via useEffect
+  if (!cours) {
+     return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full pt-20">
+        <h2 className="text-2xl font-bold text-white mb-4">Cours introuvable</h2>
+        <Link href="/" className="text-indigo-400 hover:text-indigo-300 flex items-center gap-2">
+          <ArrowLeft size={16} /> Retour à l'accueil
+        </Link>
+      </div>
+    );
   }
 
   return (
-    <div className="app">
-      {/* Sidebar Collapse */}
-      <aside className="sidebar">
-        <div className="sidebar-logo" title="MesCours">
-          📚
-        </div>
-
-        <div className="sidebar-section">
-          <Link href="/" className="sidebar-item" title="Accueil">
-            🏠
+    <div className="flex-1 flex flex-col h-full bg-[hsl(var(--background))] overflow-hidden">
+      {/* Top Navigation Bar */}
+      <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-[#0a0a0c]/80 backdrop-blur-2xl border-b border-white/5 sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center text-sm font-medium text-white/50">
+          <Link href="/" className="flex items-center gap-2 hover:text-white transition-all bg-white/5 hover:bg-white/10 px-3 py-2 rounded-xl border border-white/5 hover:border-white/10">
+            <ArrowLeft size={16} /> Accueil
           </Link>
-          <Link href="/planning" className="sidebar-item" title="Planning">
-            📅
-          </Link>
-        </div>
+          
+          {matiere && (
+            <>
+              <ChevronRight size={16} className="mx-2 text-white/20" />
+              <Link href={`/matiere/${matiere.slug}`} className="flex items-center gap-2 hover:text-violet-300 transition-all bg-white/5 hover:bg-violet-500/10 px-3 py-2 rounded-xl border border-white/5 hover:border-violet-500/20 group">
+                <MatiereIcon iconId={matiere.icon} size={18} className="text-violet-400/70 group-hover:text-violet-400 transition-colors" /> 
+                <span className="font-semibold text-white/90 group-hover:text-white">{matiere.nom}</span>
+              </Link>
+            </>
+          )}
 
-        <div className="sidebar-bottom">
-          <button
-            onClick={() => router.back()}
-            className="sidebar-avatar"
-            title="Retour"
-          >
-            ←
-          </button>
-        </div>
-      </aside>
-
-      <div className="main-content">
-        <div className="topbar">
-          <div className="topbar-title">✏️ Éditeur de cours</div>
-          <div className="topbar-right">
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: "700",
-                background: "rgba(99, 102, 241, 0.1)",
-                color: "var(--primary)",
-                padding: "4px 12px",
-                borderRadius: "6px",
-                textTransform: "uppercase",
-              }}
-            >
-              {matiere}
-            </div>
-            <div
-              className={`save-pill ${
-                showSaved ? "ok" : saved ? "idle" : "pending"
-              }`}
-            >
-              {showSaved ? "✅ Sauvegardé" : saved ? "Prêt" : "💾 En attente..."}
-            </div>
-            <ThemeToggle />
+          <ChevronRight size={16} className="mx-2 text-white/20" />
+          <div className="flex items-center gap-2.5 bg-violet-500/10 border border-violet-500/20 px-4 py-2 rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.1)]">
+             <span className="w-2 h-2 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.8)] animate-pulse"></span>
+             <span className="text-white font-semibold line-clamp-1 max-w-[250px]">{titre || "Sans titre"}</span>
           </div>
         </div>
 
-        <div className="content-area">
-          <div className="hero">
-            <input
-              type="text"
-              value={titre}
-              onChange={handleTitreChange}
-              onBlur={() => handleSave(contenu || "")}
-              placeholder="Sans titre"
-              className="hero-greeting"
-              style={{
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                padding: "0",
-                margin: "0 0 8px 0",
-              }}
-            />
-            <div className="hero-sub">
-              📅{" "}
-              {new Date().toLocaleDateString("fr-FR", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}{" "}
-              • 📂 {matiere}
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+           <button 
+             onClick={handleDelete}
+             className="text-white/40 hover:text-red-400 hover:bg-red-500/10 p-2.5 rounded-xl transition-all border border-transparent hover:border-red-500/20"
+             title="Supprimer ce cours"
+           >
+             <Trash2 size={18} />
+           </button>
 
-          {contenu !== null && (
-            <Editor contenu={contenu} onSave={handleSave} />
-          )}
+           <div className="w-px h-8 bg-white/10 mx-1"></div>
 
-          {autresCours.length > 0 && (
-            <div className="dashboard-section">
-              <div className="section-header">
-                <div>
-                  <div className="section-title">🗂️ Autres cours</div>
-                  <div className="section-subtitle">
-                    Dans {matiere}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {autresCours.map((c) => (
-                  <Link
-                    href={`/cours/${c.id}`}
-                    key={c.id}
-                    className="card"
-                    style={{ marginBottom: 0 }}
-                  >
-                    <div className="card-header">
-                      <div className="card-title">{c.titre || "Sans titre"}</div>
-                      <div className="card-arrow">→</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+           <div className="flex items-center text-xs font-semibold uppercase tracking-wider text-white/40 gap-2 bg-[#0f0f13] px-4 py-2.5 rounded-xl border border-white/5 shadow-inner">
+             <Clock size={16} className="text-violet-400/80" /> 
+             Modifié le {new Date(cours.updatedAt).toLocaleDateString()}
+           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Editor Content Area */}
+      <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="max-w-4xl mx-auto w-full p-8 md:p-16">
+          <input
+             type="text"
+             value={titre}
+             onChange={(e) => updateTitle(e.target.value)}
+             placeholder="Titre du cours..."
+             className="w-full bg-transparent text-5xl font-bold text-white placeholder-white/20 outline-none mb-12"
+          />
+          
+          {/* Tiptap Integration - It will autosave every 800ms via handleSave */}
+          <div className="prose prose-invert prose-lg max-w-none prose-headings:font-bold prose-a:text-indigo-400">
+            <Editor contenu={cours.contenu} onSave={handleSave} />
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

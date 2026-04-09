@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toDate } from "@/lib/dateUtils";
-import { useAuth } from "@/lib/auth";
-import { getToutesTaches, creerTache, toggleTache, supprimerTache, getMatieres, Matiere, Tache } from "@/lib/firestore";
+import { getToutesTaches, creerTache, toggleTache, supprimerTache, getMatieres, Matiere, Tache } from "@/lib/firestore-local";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function PlanningPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
   const [taches, setTaches] = useState<Tache[]>([]);
   const [matieres, setMatieres] = useState<Matiere[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -22,18 +18,13 @@ export default function PlanningPage() {
   const [filterMatiere, setFilterMatiere] = useState("");
   const [filterComplete, setFilterComplete] = useState<"tous" | "en-cours" | "complete">("tous");
   const [dataLoading, setDataLoading] = useState(true);
+  const [taskLoading, setTaskLoading] = useState(false);
+  const [taskError, setTaskError] = useState("");
 
-  // Redirect to auth if not logged in
+
+
+  // Load data
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth");
-    }
-  }, [user, loading, router]);
-
-  // Load data from Firestore
-  useEffect(() => {
-    if (loading || !user) return;
-
     const loadData = async () => {
       try {
         const t = await getToutesTaches();
@@ -53,21 +44,55 @@ export default function PlanningPage() {
     };
 
     loadData();
-  }, [user, loading]);
+  }, []);
 
   const handleCreer = async () => {
-    if (!newTitre.trim() || !newDeadline || !newMatiereId) return;
+    setTaskError("");
+
+    // Validation
+    if (!newTitre.trim()) {
+      setTaskError("Veuillez entrer un titre");
+      return;
+    }
+
+    if (newTitre.trim().length > 200) {
+      setTaskError("Le titre doit contenir maximum 200 caractères");
+      return;
+    }
+
+    if (!newDeadline) {
+      setTaskError("Veuillez sélectionner une deadline");
+      return;
+    }
+
+    if (!newMatiereId) {
+      setTaskError("Veuillez sélectionner une matière");
+      return;
+    }
+
+    const deadline = new Date(newDeadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
+    if (deadline < today) {
+      setTaskError("La deadline doit être une date future");
+      return;
+    }
+
+    setTaskLoading(true);
     try {
       const matiere = matieres.find((m) => m.id === newMatiereId);
-      if (!matiere) return;
+      if (!matiere) {
+        setTaskError("Matière introuvable");
+        return;
+      }
       
       await creerTache(
         newTitre.trim(),
         newType,
         newMatiereId,
         matiere.nom,
-        new Date(newDeadline),
+        deadline,
         newPriorite
       );
       
@@ -78,8 +103,12 @@ export default function PlanningPage() {
       setNewType("revision");
       setNewDeadline("");
       setNewPriorite("moyenne");
+      setTaskError("");
     } catch (error) {
       console.error("Erreur:", error);
+      setTaskError("Une erreur est survenue lors de la création");
+    } finally {
+      setTaskLoading(false);
     }
   };
 
@@ -103,7 +132,7 @@ export default function PlanningPage() {
     }
   };
 
-  if (loading || dataLoading) {
+  if (dataLoading) {
     return (
       <div style={{
         display: "flex",
@@ -119,10 +148,6 @@ export default function PlanningPage() {
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // Will redirect via useEffect
   }
 
   let tachesFiltrees = taches;
@@ -144,7 +169,7 @@ export default function PlanningPage() {
   const tachesLater = tachesFiltrees.filter((t) => toDate(t.deadline) > new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000));
 
   const iconeType: Record<string, string> = {
-    revision: "📚",
+    revision: "�",
     exercice: "✏️",
     devoir: "📋",
     autre: "✓",
@@ -159,27 +184,29 @@ export default function PlanningPage() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="sidebar-logo" title="Planning">📅</div>
+        <div className="sidebar-logo" title="Planning">MC</div>
 
         <div className="sidebar-section">
           <Link href="/" className="sidebar-item" title="Accueil">
-            🏠
+            <span className="icon icon-home"></span> <span>Accueil</span>
           </Link>
           <div className="sidebar-item active" title="Planning">
-            📅
+            <span className="icon icon-calendar"></span> <span>Planning</span>
           </div>
         </div>
 
         <div className="sidebar-section">
           {matieres.slice(0, 3).map((m) => (
             <Link key={m.id} href={`/matiere/${m.slug}`} className="sidebar-item" title={m.nom}>
-              {m.icon}
+              <span style={{fontSize: "16px"}}>{m.icon}</span> <span>{m.nom}</span>
             </Link>
           ))}
         </div>
 
-        <div className="sidebar-bottom">
-          <div className="sidebar-avatar" title="Profil">👤</div>
+        <div className="sidebar-section">
+          <Link href="/profil" className="sidebar-item" title="Profil">
+            <span className="icon icon-user"></span> <span>Profil</span>
+          </Link>
         </div>
       </aside>
 
@@ -262,6 +289,18 @@ export default function PlanningPage() {
             <div className="dashboard-section">
               <div className="section-title">Créer une nouvelle tâche</div>
               <div style={{ background: "var(--bg-alt)", borderRadius: "12px", padding: "20px" }}>
+                {taskError && (
+                  <div style={{
+                    padding: "12px",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    color: "#ef4444",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                    marginBottom: "16px",
+                  }}>
+                    ⚠️ {taskError}
+                  </div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
                   <div className="form-group">
                     <div className="form-label">Titre *</div>
@@ -272,13 +311,18 @@ export default function PlanningPage() {
                       onChange={(e) => setNewTitre(e.target.value)}
                       placeholder="Ex: Réviser les dérivées"
                       autoFocus
+                      disabled={taskLoading}
+                      maxLength={200}
                     />
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                      {newTitre.length}/200
+                    </div>
                   </div>
 
                   <div className="form-group">
                     <div className="form-label">Type *</div>
-                    <select className="form-input" value={newType} onChange={(e) => setNewType(e.target.value as any)}>
-                      <option value="revision">📚 Révision</option>
+                    <select className="form-input" value={newType} onChange={(e) => setNewType(e.target.value as any)} disabled={taskLoading}>
+                      <option value="revision">� Révision</option>
                       <option value="exercice">✏️ Exercice</option>
                       <option value="devoir">📋 Devoir</option>
                       <option value="autre">✓ Autre</option>
@@ -287,7 +331,8 @@ export default function PlanningPage() {
 
                   <div className="form-group">
                     <div className="form-label">Matière *</div>
-                    <select className="form-input" value={newMatiereId} onChange={(e) => setNewMatiereId(e.target.value)}>
+                    <select className="form-input" value={newMatiereId} onChange={(e) => setNewMatiereId(e.target.value)} disabled={taskLoading}>
+                      <option value="">-- Sélectionner une matière --</option>
                       {matieres.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.icon} {m.nom}
@@ -303,12 +348,13 @@ export default function PlanningPage() {
                       type="date"
                       value={newDeadline}
                       onChange={(e) => setNewDeadline(e.target.value)}
+                      disabled={taskLoading}
                     />
                   </div>
 
                   <div className="form-group">
                     <div className="form-label">Priorité</div>
-                    <select className="form-input" value={newPriorite} onChange={(e) => setNewPriorite(e.target.value as any)}>
+                    <select className="form-input" value={newPriorite} onChange={(e) => setNewPriorite(e.target.value as any)} disabled={taskLoading}>
                       <option value="basse">🟢 Basse</option>
                       <option value="moyenne">🟡 Moyenne</option>
                       <option value="haute">🔴 Haute</option>
@@ -317,10 +363,10 @@ export default function PlanningPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-                  <button className="btn btn-primary" onClick={handleCreer}>
-                    Créer la tâche
+                  <button className="btn btn-primary" onClick={handleCreer} disabled={taskLoading} style={{ opacity: taskLoading ? 0.6 : 1, cursor: taskLoading ? "not-allowed" : "pointer" }}>
+                    {taskLoading ? "⏳ Création..." : "Créer la tâche"}
                   </button>
-                  <button className="btn btn-secondary" onClick={() => setShowForm(false)}>
+                  <button className="btn btn-secondary" onClick={() => setShowForm(false)} disabled={taskLoading}>
                     Annuler
                   </button>
                 </div>

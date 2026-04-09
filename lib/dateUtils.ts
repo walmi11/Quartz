@@ -1,7 +1,5 @@
-import { Timestamp } from 'firebase/firestore';
-
 /**
- * Convert Firestore Timestamp or Date to JavaScript Date
+ * Convert Date to JavaScript Date
  */
 export function toDate(value: any): Date {
   if (!value) {
